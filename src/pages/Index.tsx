@@ -48,13 +48,39 @@ export default function Index() {
     toast.success(isLogin ? 'С возвращением!' : 'Регистрация успешна!');
   };
 
-  const handlePublish = () => {
-    const publishedUrl = `https://poehali.dev/site/${currentProject.id}`;
-    const updatedProject = { ...currentProject, publishedUrl };
-    setCurrentProject(updatedProject);
-    setProjects(projects.map(p => p.id === currentProject.id ? updatedProject : p));
-    toast.success('Сайт опубликован! Ссылка скопирована');
-    navigator.clipboard.writeText(publishedUrl);
+  const handlePublish = async () => {
+    try {
+      const response = await fetch('https://functions.poehali.dev/01643e7f-12ef-427a-b186-826723d6e783', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-User-Email': email || 'anonymous'
+        },
+        body: JSON.stringify({
+          id: currentProject.id,
+          name: currentProject.name,
+          html: currentProject.html,
+          css: currentProject.css,
+          js: currentProject.js
+        })
+      });
+      
+      const data = await response.json();
+      
+      if (response.ok) {
+        const publishedUrl = `https://functions.poehali.dev/01643e7f-12ef-427a-b186-826723d6e783/${currentProject.id}`;
+        const updatedProject = { ...currentProject, publishedUrl };
+        setCurrentProject(updatedProject);
+        setProjects(projects.map(p => p.id === currentProject.id ? updatedProject : p));
+        toast.success('Сайт опубликован! Ссылка скопирована');
+        navigator.clipboard.writeText(publishedUrl);
+      } else {
+        toast.error('Ошибка публикации: ' + (data.error || 'Неизвестная ошибка'));
+      }
+    } catch (error) {
+      toast.error('Ошибка соединения с сервером');
+      console.error('Publish error:', error);
+    }
   };
 
   const handleDownload = () => {
