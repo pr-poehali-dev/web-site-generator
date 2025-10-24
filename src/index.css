@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Roboto:wght@400;700;900&display=swap");
 
 @tailwind base;
 @tailwind components;
@@ -92,7 +92,7 @@
 
   body {
     @apply bg-background text-foreground;
-    font-family: "Press Start 2P", cursive;
+    font-family: "Roboto", sans-serif;
     overflow-x: hidden;
   }
 }
