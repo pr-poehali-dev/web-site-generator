@@ -1,6 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Card } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -18,12 +17,16 @@ interface Project {
   createdAt: string;
 }
 
+const ENERGY_KEY = 'pluteditor_energy';
+const INITIAL_ENERGY = 350;
+const PUBLISH_COST = 50;
+
 export default function Index() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [isLogin, setIsLogin] = useState(true);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const [currentView, setCurrentView] = useState<'editor' | 'projects'>('editor');
+  const [energy, setEnergy] = useState<number>(() => {
+    const saved = localStorage.getItem(ENERGY_KEY);
+    return saved ? parseInt(saved, 10) : INITIAL_ENERGY;
+  });
   
   const [currentProject, setCurrentProject] = useState<Project>({
     id: Date.now().toString(),
@@ -39,22 +42,22 @@ export default function Index() {
   const [activeTab, setActiveTab] = useState('html');
   const [showPreview, setShowPreview] = useState(false);
 
-  const handleAuth = () => {
-    if (!email || !password) {
-      toast.error('Заполните все поля!');
-      return;
-    }
-    setIsAuthenticated(true);
-    toast.success(isLogin ? 'С возвращением!' : 'Регистрация успешна!');
-  };
+  useEffect(() => {
+    localStorage.setItem(ENERGY_KEY, energy.toString());
+  }, [energy]);
 
   const handlePublish = async () => {
+    if (energy < PUBLISH_COST) {
+      toast.error(`Недостаточно энергии! Нужно ${PUBLISH_COST}, у вас ${energy}`);
+      return;
+    }
+
     try {
       const response = await fetch('https://functions.poehali.dev/01643e7f-12ef-427a-b186-826723d6e783', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-User-Email': email || 'anonymous'
+          'X-User-Email': 'user@pluteditor.com'
         },
         body: JSON.stringify({
           id: currentProject.id,
@@ -68,11 +71,13 @@ export default function Index() {
       const data = await response.json();
       
       if (response.ok) {
+        setEnergy(prev => prev - PUBLISH_COST);
+        
         const publishedUrl = `https://functions.poehali.dev/01643e7f-12ef-427a-b186-826723d6e783/${currentProject.id}`;
         const updatedProject = { ...currentProject, publishedUrl };
         setCurrentProject(updatedProject);
         setProjects(projects.map(p => p.id === currentProject.id ? updatedProject : p));
-        toast.success('Сайт опубликован! Ссылка скопирована');
+        toast.success(`Сайт опубликован! -${PUBLISH_COST} энергии`);
         navigator.clipboard.writeText(publishedUrl);
       } else {
         toast.error('Ошибка публикации: ' + (data.error || 'Неизвестная ошибка'));
@@ -157,61 +162,28 @@ export default function Index() {
     `;
   };
 
-  if (!isAuthenticated) {
-    return (
-      <div className="min-h-screen flex items-center justify-center p-4 retro-gradient">
-        <Card className="w-full max-w-md p-8 bg-black border-4 border-[#FFD700]">
-          <div className="text-center mb-8">
-            <h1 className="text-3xl md:text-4xl font-black text-[#FFD700] retro-glow mb-2">
-              PlutEditorSites
-            </h1>
-            <p className="text-sm text-[#DC143C] font-bold">Конструктор веб-сайтов</p>
-            <Icon name="Code" className="mx-auto text-[#DC143C] float mt-4" size={48} />
-          </div>
-          
-          <div className="space-y-4">
-            <Input
-              type="email"
-              placeholder="Электронная почта"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="bg-black border-2 border-[#FFD700] text-[#FFD700] placeholder:text-[#FFD700]/50"
-            />
-            <Input
-              type="password"
-              placeholder="Пароль"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="bg-black border-2 border-[#FFD700] text-[#FFD700] placeholder:text-[#FFD700]/50"
-            />
-            
-            <Button
-              onClick={handleAuth}
-              className="w-full bg-gradient-to-r from-[#DC143C] to-[#FFD700] text-black hover:opacity-90 font-bold py-6"
-            >
-              {isLogin ? 'Войти' : 'Зарегистрироваться'}
-            </Button>
-            
-            <button
-              onClick={() => setIsLogin(!isLogin)}
-              className="w-full text-[#FFD700] hover:text-[#DC143C] transition-colors text-sm mt-4"
-            >
-              {isLogin ? 'Нет аккаунта? Регистрация' : 'Есть аккаунт? Войти'}
-            </button>
-          </div>
-        </Card>
-      </div>
-    );
-  }
+  const getEnergyColor = () => {
+    if (energy >= 200) return '#FFD700';
+    if (energy >= 100) return '#FFA500';
+    return '#DC143C';
+  };
 
   if (currentView === 'projects') {
     return (
       <div className="min-h-screen bg-black text-[#FFD700] p-4">
         <div className="max-w-7xl mx-auto">
           <header className="mb-6 pb-4 border-b-4 border-[#FFD700]">
-            <h1 className="text-2xl md:text-4xl font-black retro-glow text-center mb-4">
-              PlutEditorSites
-            </h1>
+            <div className="flex justify-between items-center mb-4">
+              <h1 className="text-2xl md:text-4xl font-black retro-glow">
+                PlutEditorSites
+              </h1>
+              <div className="flex items-center gap-2 bg-black border-2 border-[#FFD700] px-4 py-2">
+                <Icon name="Zap" size={20} style={{ color: getEnergyColor() }} />
+                <span className="font-bold text-lg" style={{ color: getEnergyColor() }}>
+                  {energy}
+                </span>
+              </div>
+            </div>
             <div className="flex flex-wrap gap-2 justify-center">
               <Button
                 onClick={() => setCurrentView('editor')}
@@ -282,9 +254,17 @@ export default function Index() {
     <div className="min-h-screen bg-black text-[#FFD700] p-4">
       <div className="max-w-7xl mx-auto">
         <header className="mb-6 pb-4 border-b-4 border-[#FFD700]">
-          <h1 className="text-2xl md:text-4xl font-black retro-glow text-center mb-4">
-            PlutEditorSites
-          </h1>
+          <div className="flex justify-between items-center mb-4">
+            <h1 className="text-2xl md:text-4xl font-black retro-glow">
+              PlutEditorSites
+            </h1>
+            <div className="flex items-center gap-2 bg-black border-2 border-[#FFD700] px-4 py-2 animate-pulse">
+              <Icon name="Zap" size={24} style={{ color: getEnergyColor() }} className="float" />
+              <span className="font-black text-2xl" style={{ color: getEnergyColor() }}>
+                {energy}
+              </span>
+            </div>
+          </div>
           <p className="text-center text-sm text-[#FFD700]/70 mb-4">
             Редактируется: <span className="font-bold text-[#FFD700]">{currentProject.name}</span>
           </p>
@@ -300,10 +280,11 @@ export default function Index() {
             
             <Button
               onClick={handlePublish}
-              className="bg-gradient-to-r from-[#DC143C] to-[#FFD700] text-black hover:opacity-90 font-bold"
+              disabled={energy < PUBLISH_COST}
+              className="bg-gradient-to-r from-[#DC143C] to-[#FFD700] text-black hover:opacity-90 font-bold disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Icon name="Upload" size={20} className="mr-2" />
-              Опубликовать
+              Опубликовать (-{PUBLISH_COST} ⚡)
             </Button>
             
             <Button
