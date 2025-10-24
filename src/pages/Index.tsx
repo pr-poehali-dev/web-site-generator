@@ -47,7 +47,9 @@ export default function Index() {
   }, [energy]);
 
   const handlePublish = async () => {
-    if (energy < PUBLISH_COST) {
+    const isRePublish = !!currentProject.publishedUrl;
+    
+    if (!isRePublish && energy < PUBLISH_COST) {
       toast.error(`Недостаточно энергии! Нужно ${PUBLISH_COST}, у вас ${energy}`);
       return;
     }
@@ -71,13 +73,21 @@ export default function Index() {
       const data = await response.json();
       
       if (response.ok) {
-        setEnergy(prev => prev - PUBLISH_COST);
+        if (!isRePublish) {
+          setEnergy(prev => prev - PUBLISH_COST);
+        }
         
         const publishedUrl = `https://functions.poehali.dev/01643e7f-12ef-427a-b186-826723d6e783/${currentProject.id}`;
         const updatedProject = { ...currentProject, publishedUrl };
         setCurrentProject(updatedProject);
         setProjects(projects.map(p => p.id === currentProject.id ? updatedProject : p));
-        toast.success(`Сайт опубликован! -${PUBLISH_COST} энергии`);
+        
+        if (isRePublish) {
+          toast.success('Сайт обновлён!');
+        } else {
+          toast.success(`Сайт опубликован! -${PUBLISH_COST} энергии`);
+        }
+        
         navigator.clipboard.writeText(publishedUrl);
       } else {
         toast.error('Ошибка публикации: ' + (data.error || 'Неизвестная ошибка'));
@@ -280,11 +290,11 @@ export default function Index() {
             
             <Button
               onClick={handlePublish}
-              disabled={energy < PUBLISH_COST}
+              disabled={!currentProject.publishedUrl && energy < PUBLISH_COST}
               className="bg-gradient-to-r from-[#DC143C] to-[#FFD700] text-black hover:opacity-90 font-bold disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Icon name="Upload" size={20} className="mr-2" />
-              Опубликовать (-{PUBLISH_COST} ⚡)
+              {currentProject.publishedUrl ? 'Обновить сайт' : `Опубликовать (-${PUBLISH_COST} ⚡)`}
             </Button>
             
             <Button
